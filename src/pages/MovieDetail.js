@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import StarRating from '../components/StarRating';
 
@@ -13,6 +13,7 @@ const MovieDetail = ({ showToast, setLoading }) => {
     const [comment, setComment] = useState('');
     const [isEditingReview, setIsEditingReview] = useState(false);
     const loadingRef = useRef(false);
+    const currentMovieId = useRef(null);
 
     const backButtonInfo = useMemo(() => {
         const referrer = location.state?.from || document.referrer;
@@ -28,7 +29,7 @@ const MovieDetail = ({ showToast, setLoading }) => {
         }
     }, [location.state?.from]);
 
-    const handleSaveRating = (newRating, newComment) => {
+    const handleSaveRating = useCallback((newRating, newComment) => {
         try {
             const watched = JSON.parse(localStorage.getItem('watched') || '[]');
             const updatedWatched = watched.map(m => {
@@ -59,21 +60,14 @@ const MovieDetail = ({ showToast, setLoading }) => {
         } catch (error) {
             showToast('Failed to save rating and review', 'Error');
         }
-    };
+    }, [movieId, showToast]);
 
-    useEffect(() => {
-        if (movieId) {
-            // Reset state for new movie
-            setMovie(null);
-            loadingRef.current = false;
-            loadMovieDetails();
-            checkUserStatus();
-        }
-    }, [movieId]);
-
-    const loadMovieDetails = () => {
-        if (loadingRef.current || (movie && movie.id == movieId)) {
-            return; // Prevent double loading or loading if we already have the data
+    const loadMovieDetails = useCallback(() => {
+        console.log('loadMovieDetails called for movieId:', movieId, 'loadingRef.current:', loadingRef.current);
+        // Prevent duplicate calls and ensure we're loading the correct movie
+        if (loadingRef.current || !movieId || currentMovieId.current === movieId) {
+            console.log('loadMovieDetails early return - already loading or duplicate call');
+            return;
         }
         
         // Use environment variable or fallback key for academic evaluation
@@ -83,44 +77,53 @@ const MovieDetail = ({ showToast, setLoading }) => {
             return;
         }
         
+        console.log('Starting to load movie details for:', movieId);
         loadingRef.current = true;
+        currentMovieId.current = movieId;
         setLoading(true);
-        const startTime = Date.now();
 
         fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${API_KEY}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                setMovie(data);
+                console.log('Movie data received for:', movieId, 'currentMovieId:', currentMovieId.current);
+                // Only update state if this is still the current movie
+                if (currentMovieId.current === movieId) {
+                    setMovie(data);
+                    console.log('Setting movie data and stopping loading');
+                }
+                // Immediately stop loading - no setTimeout
+                setLoading(false);
+                loadingRef.current = false;
             })
             .catch(error => {
                 console.error('Error loading movie details:', error);
                 showToast('Failed to load movie details', 'Error');
-            })
-            .finally(() => {
-                // Ensure spinner shows for at least 800ms
-                const elapsed = Date.now() - startTime;
-                const minDuration = 800;
-                
-                if (elapsed < minDuration) {
-                    setTimeout(() => {
-                        setLoading(false);
-                        loadingRef.current = false;
-                    }, minDuration - elapsed);
-                } else {
-                    setLoading(false);
-                    loadingRef.current = false;
-                }
+                // Stop loading on error
+                console.log('Error occurred, stopping loading');
+                setLoading(false);
+                loadingRef.current = false;
             });
-    };
+    }, [movieId, showToast, setLoading]);
 
-    const checkUserStatus = () => {
+    const checkUserStatus = useCallback(() => {
+        if (!movieId) return;
+        
         const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
         const watched = JSON.parse(localStorage.getItem('watched') || '[]');
 
-        const watchedItem = watched.find(item => item.id == movieId || item.imdbID === movieId);
+        const watchedItem = watched.find(item => 
+            String(item.id) === String(movieId) || String(item.imdbID) === String(movieId)
+        );
         
         setUserStatus({
-            inWatchlist: watchlist.some(item => item.id == movieId || item.imdbID === movieId),
+            inWatchlist: watchlist.some(item => 
+                String(item.id) === String(movieId) || String(item.imdbID) === String(movieId)
+            ),
             isWatched: !!watchedItem
         });
 
@@ -129,7 +132,30 @@ const MovieDetail = ({ showToast, setLoading }) => {
             setRating(watchedItem.userRating || 0);
             setComment(watchedItem.userComment || '');
         }
-    };
+    }, [movieId]);
+
+
+
+    useEffect(() => {
+        if (movieId) {
+            console.log('MovieDetail useEffect triggered for movieId:', movieId);
+            // Reset state for new movie
+            setMovie(null);
+            setUserStatus({ inWatchlist: false, isWatched: false });
+            setWatchedMovie(null);
+            setRating(0);
+            setComment('');
+            setIsEditingReview(false);
+            
+            // Reset loading state
+            loadingRef.current = false;
+            currentMovieId.current = null;
+            
+            // Load movie details and check user status
+            loadMovieDetails();
+            checkUserStatus();
+        }
+    }, [movieId]); // Remove functions from dependency array to prevent infinite loops
 
     if (!movie) {
         return <div className="text-center py-5">Loading...</div>;
@@ -228,7 +254,8 @@ const MovieDetail = ({ showToast, setLoading }) => {
                                 </div>
                             </div>
                         </div>
-                    )}           </div>
+                    )}
+                </div>
 
                 <div className="col-md-4">
                     <div className="movie-poster">
