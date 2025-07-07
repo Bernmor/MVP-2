@@ -6,6 +6,7 @@ import Watchlist from './pages/Watchlist';
 import Watched from './pages/Watched';
 import AddMovie from './pages/AddMovie';
 import MovieDetail from './pages/MovieDetail';
+import MovieNotes from './pages/MovieNotes';
 
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
@@ -89,6 +90,14 @@ function App() {
                             element={
                                 <ProtectedRoute>
                                     <MovieDetail showToast={showToast} setLoading={setLoading} />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/movie-notes"
+                            element={
+                                <ProtectedRoute>
+                                    <MovieNotes showToast={showToast} setLoading={setLoading} />
                                 </ProtectedRoute>
                             }
                         />

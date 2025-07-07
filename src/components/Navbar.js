@@ -12,7 +12,7 @@ export default function Navbar({ currentUser, setCurrentUser, showToast }) {
             <div className="container">
                 <Link className="navbar-brand" to="/dashboard">
                     <img 
-                        src="/Gemini_Generated_Image_4gemp04gemp04gem.png" 
+                        src="/movie_tracker_logo.png"
                         alt="Movie Tracker Logo" 
                         className="navbar-logo white-bg me-2"
                     />
@@ -41,6 +41,9 @@ export default function Navbar({ currentUser, setCurrentUser, showToast }) {
                                 </li>
                                 <li className="nav-item">
                                     <Link className="nav-link" to="/add-movie">Add Movie</Link>
+                                </li>
+                                <li className="nav-item">
+                                    <Link className="nav-link" to="/movie-notes">Movie Notes</Link>
                                 </li>
                             </>
                         )}
