@@ -22,7 +22,7 @@ Uma aplicação React para rastreamento de filmes que permite aos usuários gere
 1. **Clonar e Instalar**
    ```bash
    cd MVP-2
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 2. **Executar a Aplicação**
